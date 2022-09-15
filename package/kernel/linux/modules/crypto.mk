@@ -42,7 +42,7 @@ define KernelPackage/crypto-aead
 	CONFIG_CRYPTO_AEAD2
   FILES:= \
 	  $(LINUX_DIR)/crypto/aead.ko \
-	  $(LINUX_DIR)/crypto/geniv.ko@ge5.10
+	  $(LINUX_DIR)/crypto/geniv.ko
   AUTOLOAD:=$(call AutoLoad,09,aead,1)
   $(call AddDepends/crypto, +kmod-crypto-null)
 endef
@@ -69,8 +69,10 @@ define KernelPackage/crypto-authenc
   TITLE:=Combined mode wrapper for IPsec
   DEPENDS:=+kmod-crypto-manager +kmod-crypto-null
   KCONFIG:=CONFIG_CRYPTO_AUTHENC
-  FILES:=$(LINUX_DIR)/crypto/authenc.ko
-  AUTOLOAD:=$(call AutoLoad,09,authenc)
+  FILES:= \
+	$(LINUX_DIR)/crypto/authenc.ko \
+	$(LINUX_DIR)/crypto/authencesn.ko
+  AUTOLOAD:=$(call AutoLoad,09,authenc authencesn)
   $(call AddDepends/crypto)
 endef
 
@@ -99,6 +101,18 @@ define KernelPackage/crypto-ccm
 endef
 
 $(eval $(call KernelPackage,crypto-ccm))
+
+
+define KernelPackage/crypto-chacha20poly1305
+  TITLE:=ChaCha20-Poly1305 AEAD support, RFC7539 (used by strongSwan IPsec VPN)
+  DEPENDS:=+kmod-crypto-aead +kmod-crypto-manager
+  KCONFIG:=CONFIG_CRYPTO_CHACHA20POLY1305
+  FILES:=$(LINUX_DIR)/crypto/chacha20poly1305.ko
+  AUTOLOAD:=$(call AutoLoad,09,chacha20poly1305)
+  $(call AddDepends/crypto)
+endef
+
+$(eval $(call KernelPackage,crypto-chacha20poly1305))
 
 
 define KernelPackage/crypto-cmac
@@ -287,7 +301,7 @@ define KernelPackage/crypto-ghash/arm-ce
   AUTOLOAD+=$(call AutoLoad,09,ghash-arm-ce)
 endef
 
-KernelPackage/crypto-ghash/imx6=$(KernelPackage/crypto-ghash/arm-ce)
+KernelPackage/crypto-ghash/imx=$(KernelPackage/crypto-ghash/arm-ce)
 KernelPackage/crypto-ghash/ipq40xx=$(KernelPackage/crypto-ghash/arm-ce)
 KernelPackage/crypto-ghash/mvebu/cortexa9=$(KernelPackage/crypto-ghash/arm-ce)
 
@@ -393,8 +407,9 @@ $(eval $(call KernelPackage,crypto-hw-padlock))
 
 define KernelPackage/crypto-hw-safexcel
   TITLE:= MVEBU SafeXcel Crypto Engine module
-  DEPENDS:=@(TARGET_mvebu_cortexa53||TARGET_mvebu_cortexa72) +eip197-mini-firmware \
-	+kmod-crypto-authenc +kmod-crypto-md5 +kmod-crypto-hmac +kmod-crypto-sha256 +kmod-crypto-sha512
+  DEPENDS:=@(TARGET_mvebu_cortexa53||TARGET_mvebu_cortexa72||TARGET_mediatek_filogic||TARGET_mediatek_mt7623) \
+	+eip197-mini-firmware +kmod-crypto-authenc +kmod-crypto-des +kmod-crypto-md5 +kmod-crypto-hmac \
+	+kmod-crypto-sha1 +kmod-crypto-sha256 +kmod-crypto-sha512
   KCONFIG:= \
 	CONFIG_CRYPTO_HW=y \
 	CONFIG_CRYPTO_DEV_SAFEXCEL
@@ -445,29 +460,6 @@ define KernelPackage/crypto-kpp
 endef
 
 $(eval $(call KernelPackage,crypto-kpp))
-
-
-define KernelPackage/crypto-lib-blake2s
-  TITLE:=BLAKE2s hash function library
-  KCONFIG:=CONFIG_CRYPTO_LIB_BLAKE2S
-  HIDDEN:=1
-  FILES:= \
-	$(LINUX_DIR)/lib/crypto/libblake2s.ko \
-	$(LINUX_DIR)/lib/crypto/libblake2s-generic.ko
-  $(call AddDepends/crypto,+PACKAGE_kmod-crypto-hash:kmod-crypto-hash)
-endef
-
-define KernelPackage/crypto-lib-blake2s/config
-  imply PACKAGE_kmod-crypto-hash
-endef
-
-define KernelPackage/crypto-lib-blake2s/x86/64
-  KCONFIG+=CONFIG_CRYPTO_BLAKE2S_X86
-  FILES+=$(LINUX_DIR)/arch/x86/crypto/blake2s-x86_64.ko
-endef
-
-$(eval $(call KernelPackage,crypto-lib-blake2s))
-
 
 define KernelPackage/crypto-lib-chacha20
   TITLE:=ChaCha library interface
@@ -683,7 +675,7 @@ define KernelPackage/crypto-misc
 	CONFIG_CRYPTO_KHAZAD \
 	CONFIG_CRYPTO_SERPENT \
 	CONFIG_CRYPTO_TEA \
-	CONFIG_CRYPTO_TGR192 \
+	CONFIG_CRYPTO_TGR192@lt5.12 \
 	CONFIG_CRYPTO_TWOFISH \
 	CONFIG_CRYPTO_TWOFISH_COMMON \
 	CONFIG_CRYPTO_TWOFISH_586 \
@@ -696,7 +688,7 @@ define KernelPackage/crypto-misc
 	$(LINUX_DIR)/crypto/cast6_generic.ko \
 	$(LINUX_DIR)/crypto/khazad.ko \
 	$(LINUX_DIR)/crypto/tea.ko \
-	$(LINUX_DIR)/crypto/tgr192.ko \
+	$(LINUX_DIR)/crypto/tgr192.ko@lt5.12 \
 	$(LINUX_DIR)/crypto/twofish_common.ko \
 	$(LINUX_DIR)/crypto/wp512.ko \
 	$(LINUX_DIR)/crypto/twofish_generic.ko \
@@ -704,7 +696,7 @@ define KernelPackage/crypto-misc
 	$(LINUX_DIR)/crypto/blowfish_generic.ko \
 	$(LINUX_DIR)/crypto/serpent_generic.ko
   AUTOLOAD:=$(call AutoLoad,10,anubis camellia_generic cast_common \
-	cast5_generic cast6_generic khazad tea tgr192 twofish_common \
+	cast5_generic cast6_generic khazad tea tgr192@lt5.12 twofish_common \
 	wp512 blowfish_common serpent_generic)
   ifndef CONFIG_TARGET_x86
 	AUTOLOAD+= $(call AutoLoad,10,twofish_generic blowfish_generic)
@@ -857,7 +849,7 @@ define KernelPackage/crypto-sha1/arm-neon
   AUTOLOAD+=$(call AutoLoad,09,sha1-arm-neon)
 endef
 
-KernelPackage/crypto-sha1/imx6=$(KernelPackage/crypto-sha1/arm-neon)
+KernelPackage/crypto-sha1/imx=$(KernelPackage/crypto-sha1/arm-neon)
 KernelPackage/crypto-sha1/ipq40xx=$(KernelPackage/crypto-sha1/arm-neon)
 KernelPackage/crypto-sha1/mvebu/cortexa9=$(KernelPackage/crypto-sha1/arm-neon)
 
@@ -866,7 +858,7 @@ define KernelPackage/crypto-sha1/octeon
   AUTOLOAD+=$(call AutoLoad,09,octeon-sha1)
 endef
 
-KernelPackage/crypto-sha1/tegra=$(KernelPakcage/crypto-sha1/arm)
+KernelPackage/crypto-sha1/tegra=$(KernelPackage/crypto-sha1/arm)
 
 define KernelPackage/crypto-sha1/x86/64
   FILES+=$(LINUX_DIR)/arch/x86/crypto/sha1-ssse3.ko
@@ -921,7 +913,7 @@ define KernelPackage/crypto-sha512/arm
   AUTOLOAD+=$(call AutoLoad,09,sha512-arm)
 endef
 
-KernelPackage/crypto-sha512/imx6=$(KernelPackage/crypto-sha512/arm)
+KernelPackage/crypto-sha512/imx=$(KernelPackage/crypto-sha512/arm)
 KernelPackage/crypto-sha512/ipq40xx=$(KernelPackage/crypto-sha512/arm)
 KernelPackage/crypto-sha512/mvebu/cortexa9=$(KernelPackage/crypto-sha512/arm)
 
